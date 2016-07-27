@@ -1,0 +1,20 @@
+Package: EMnet
+Version: 0.0-1
+Date: 2016-07-01
+Title: Train Penalized Mixtures of Experts by EM Algorithm
+Description: This package implements several logistic penalized mixture of experts
+    models for classification.
+Authors@R: person("Julia", "Schiffner", email = "schiffner@math.uni-duesseldorf.de",
+  role = c("aut", "cre"))
+Author: Julia Schiffner [aut,cre]
+Maintainer: Julia Schiffner <schiffner@math.uni-duesseldorf.de>
+URL: https://github.com/schiffner/EMnet
+Depends:
+    R (>= 3.0.2),
+    stats
+Imports:
+    glmnet
+Suggests:
+    testthat
+License: GPL (>=2)
+RoxygenNote: 5.0.1
