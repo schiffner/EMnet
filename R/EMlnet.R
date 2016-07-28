@@ -113,7 +113,7 @@ EMlnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2, 
 		## check weights
 		if (nrow(init.weights) != N)
 			stop("'nrow(init.weights)' and 'nrow(X)' must be equal")
-		if (ncol(init.weights) != N)
+		if (ncol(init.weights) != J)
 			stop("'ncol(init.weights)' must equal 'J'")
 		s = rowSums(init.weights)
 		if (any(s != 1)) {# all.equal?, tolerance?
