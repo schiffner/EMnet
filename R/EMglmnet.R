@@ -38,6 +38,7 @@
 #'   \item{gating}{The gating model. An object of class \code{glmnet}.}
 #'   \item{experts}{A \code{list} of \code{J} expert models. These are objects of class \code{glmnet}}
 #'   \item{weights}{The final group membership values.}
+#'   \item{iters}{The number of iterations in the EM algorithm.}
 #'   \item{J,K, colsGating, colsExperts, lambda, offsetGating, offsetExperts}{See arguments.}
 #'   \item{lev1}{Class labels present in the data.}
 #'   \item{lev}{Class labels.}
@@ -179,8 +180,8 @@ EMglmnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2
 		oldPars = newPars
 		newPars = c(parsGating, parsExperts)
 
-print(summary(oldPars))
-print(summary(newPars))
+# print(summary(oldPars))
+# print(summary(newPars))
 
 		if (sum((oldPars - newPars)^2) < tol)
 			break
@@ -208,12 +209,12 @@ print(summary(newPars))
 		weights = predGating * predExperts
 		weights = weights/rowSums(weights)
 
-print(summary(weights))
-print(i)
+# print(summary(weights))
+# print(i)
 
 	}
 
-	res = list(gating = gating, experts = experts, weights = weights, J = J, K = K, colsGating = colsGating,
+	res = list(gating = gating, experts = experts, weights = weights, iters = i, J = J, K = K, colsGating = colsGating,
 		colsExperts = colsExperts, lambda = lambda, offsetGating = offsetGating, offsetExperts = offsetExperts,
 		lev1 = lev1, lev = lev)
 	class(res) = "EMglmnet"
