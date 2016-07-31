@@ -22,10 +22,10 @@
 #' @param offsetExperts Offset term for the expert model.
 #   A numeric vector. FIXME: matrix?
 #' @param J The number of experts / mixture components. Defaults to 2.
-#' @param lambda Penalty parameter. Can be a scalar or a vector of length \code{1+J} with different components for the gating and
-#'   the \code{J} expert models. All components must be >= 0.
-#' @param alpha Mixing parameter for the elastic net penalty. Can be a scalar or a vector of length \code{1+J} with different
-#'   components for the gating and the \code{J} expert models. All components must be in [0,1].
+#' @param lambda Penalty parameter. Can be a scalar or a vector of length \code{J+1} with different components for
+#'   the \code{J} experts and the gating model. All components must be >= 0.
+#' @param alpha Mixing parameter for the elastic net penalty. Can be a scalar or a vector of length \code{J+1} with different
+#'   components for the \code{J} experts and the gating model. All components must be in [0,1].
 #'   Defaults to 1.
 #' @param standardize Logical. Should the columns of \code{X} be standardized prior to fitting the model? 
 #   when necessary? return on original scale? macht das sinn fuer spase X?

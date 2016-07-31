@@ -21,11 +21,11 @@ the explanatory variables (must not contain an intercept column).}
 
 \item{J}{The number of experts / mixture components. Defaults to 2.}
 
-\item{lambda}{Penalty parameter. Can be a scalar or a vector of length \code{1+J} with different components for the gating and
-the \code{J} expert models. All components must be >= 0.}
+\item{lambda}{Penalty parameter. Can be a scalar or a vector of length \code{J+1} with different components for
+the \code{J} experts and the gating model. All components must be >= 0.}
 
-\item{alpha}{Mixing parameter for the elastic net penalty. Can be a scalar or a vector of length \code{1+J} with different
-components for the gating and the \code{J} expert models. All components must be in [0,1].
+\item{alpha}{Mixing parameter for the elastic net penalty. Can be a scalar or a vector of length \code{J+1} with different
+components for the \code{J} experts and the gating model. All components must be in [0,1].
 Defaults to 1.}
 
 \item{standardize}{Logical. Should the columns of \code{X} be standardized prior to fitting the model?}

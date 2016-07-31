@@ -18,10 +18,10 @@
 #' @param offsetExperts Offset term for the expert model.
 #   A numeric vector. FIXME: matrix?
 #' @param J The number of experts / mixture components. Defaults to 2.
-#' @param lambda Penalty parameter. Can be a scalar or a vector of length \code{1+J} with different components for the gating and
-#'   the \code{J} expert models. All components must be >= 0.
-#' @param alpha Mixing parameter for the elastic net penalty. Can be a scalar or a vector of length \code{1+J} with different
-#'   components for the gating and the \code{J} expert models. All components must be in [0,1].
+#' @param lambda Penalty parameter. Can be a scalar or a vector of length \code{J+1} with different components for
+#'   the \code{J} experts and the gating model. All components must be >= 0.
+#' @param alpha Mixing parameter for the elastic net penalty. Can be a scalar or a vector of length \code{J+1} with different
+#'   components for the \code{J} experts and the gating model. All components must be in [0,1].
 #'   Defaults to 1.
 #' @param type.multinomial If \code{"grouped"} and the number of mixture components \code{J} and/or the number of
 #'   classes is larger than two, a group Lasso penalty will be used on the multinomial coefficients for a variable.
