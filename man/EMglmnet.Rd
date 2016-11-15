@@ -6,9 +6,10 @@
 \usage{
 EMglmnet(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2,
   lambda, alpha = 1, standardize = FALSE,
-  type.multinomial = c("ungrouped", "grouped"), interceptGating = TRUE,
-  interceptExperts = TRUE, offsetGating = NULL, offsetExperts = NULL,
-  iter.max = 100, tol = 1e-06, init.weights = NULL)
+  type.multinomial = c("ungrouped", "grouped"), calculate.path = TRUE,
+  interceptGating = TRUE, interceptExperts = TRUE, offsetGating = NULL,
+  offsetExperts = NULL, iter.max = 100, tol = 1e-06,
+  init.weights = NULL, minprior = 0.05, sd.tol = 1e-04)
 }
 \arguments{
 \item{y}{A \code{factor} specifying the class membership for each observation.}
@@ -35,6 +36,9 @@ Defaults to 1.}
 classes is larger than two, a group Lasso penalty will be used on the multinomial coefficients for a variable.
 Defaults to \code{"ungrouped"}.}
 
+\item{calculate.path}{Logical. Should paths for the gating and expert models be calculated after the EM algorithm terminated?
+These are based on the weights calculated in the last E step.}
+
 \item{interceptGating}{Logical. Does the gating model include an intercept?
 Defaults to \code{TRUE}.}
 
@@ -51,17 +55,23 @@ Defaults to \code{TRUE}.}
 
 \item{init.weights}{An \code{nrow(X)} times \code{J} matrix containing initial group membership values for the EM algorithm.
 The row sums must be 1. Defaults to \code{NULL}, which means that initial weights will be obtained by random segmentation.}
+
+\item{minprior}{Minimal relative size of experts. Defaults to 0.05. Experts which are smaller are removed.}
+
+\item{sd.tol}{Tolerance for detecting constant gating models, i.e., gating models not depending on the inputs and thus making constant predictions.}
 }
 \value{
 An object of class \code{EMglmnet}.
  A \code{list} with entries:
   \item{gating}{The gating model. An object of class \code{glmnet}.}
-  \item{experts}{A \code{list} of \code{J} expert models. These are objects of class \code{glmnet}}
+  \item{experts}{A \code{list} of \code{J} expert models. These are objects of class \code{glmnet}.}
   \item{weights}{The final group membership values.}
   \item{iters}{The number of iterations in the EM algorithm.}
   \item{J,K, colsGating, colsExperts, lambda, offsetGating, offsetExperts}{See arguments.}
   \item{lev1}{Class labels present in the data.}
   \item{lev}{Class labels.}
+  \item{gatingPath}{Gating model fitted for a sequence of penalty parameters. An object of class \code{glmnet}.}
+  \item{expertsPath}{A \code{list} of \code{J} expert models fitted for a sequence of penalty parameters. These are objects of class \code{glmnet}.}
 }
 \description{
 Fits a penalized mixture of experts model using the EM algorithm.

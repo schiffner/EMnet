@@ -32,20 +32,26 @@
 #' @param tol Small positive value to detect convergence of the EM algorithm.
 #' @param init.weights An \code{nrow(X)} times \code{J} matrix containing initial group membership values for the EM algorithm.
 #'  The row sums must be 1. Defaults to \code{NULL}, which means that initial weights will be obtained by random segmentation.
+#' @param calculate.path Logical. Should paths for the gating and expert models be calculated after the EM algorithm terminated?
+#'  These are based on the weights calculated in the last E step.
+#' @param minprior Minimal relative size of experts. Defaults to 0.05. Experts which are smaller are removed.
+#' @param sd.tol Tolerance for detecting constant gating models, i.e., gating models not depending on the inputs and thus making constant predictions.
 #'
 #' @return An object of class \code{EMglmnet}.
 #'  A \code{list} with entries:
 #'   \item{gating}{The gating model. An object of class \code{glmnet}.}
-#'   \item{experts}{A \code{list} of \code{J} expert models. These are objects of class \code{glmnet}}
+#'   \item{experts}{A \code{list} of \code{J} expert models. These are objects of class \code{glmnet}.}
 #'   \item{weights}{The final group membership values.}
 #'   \item{iters}{The number of iterations in the EM algorithm.}
 #'   \item{J,K, colsGating, colsExperts, lambda, offsetGating, offsetExperts}{See arguments.}
 #'   \item{lev1}{Class labels present in the data.}
 #'   \item{lev}{Class labels.}
+#'   \item{gatingPath}{Gating model fitted for a sequence of penalty parameters. An object of class \code{glmnet}.}
+#'   \item{expertsPath}{A \code{list} of \code{J} expert models fitted for a sequence of penalty parameters. These are objects of class \code{glmnet}.}
 #'
 #' @export
 
-EMglmnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2, lambda, alpha = 1, standardize = FALSE, type.multinomial = c("ungrouped", "grouped"), interceptGating = TRUE, interceptExperts = TRUE, offsetGating = NULL, offsetExperts = NULL, iter.max = 100, tol = 1e-06, init.weights = NULL) {
+EMglmnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2, lambda, alpha = 1, standardize = FALSE, type.multinomial = c("ungrouped", "grouped"), calculate.path = TRUE, interceptGating = TRUE, interceptExperts = TRUE, offsetGating = NULL, offsetExperts = NULL, iter.max = 100, tol = 1e-06, init.weights = NULL, minprior = 0.05, sd.tol = 1e-04) {
 
 	## check X
     if (is.null(dim(X))) 
@@ -112,6 +118,7 @@ EMglmnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2
 		}
 		weights = init.weights
 	} else {
+		# if () {
 		## random segmentation
 		weights = matrix(runif(N*J), ncol = J)
 		weights = weights/rowSums(weights)
@@ -119,7 +126,15 @@ EMglmnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2
 		## centers = X[sample(N,J),]
 		## clusters = assign to closest centers
 		## weights = diag(J)[clusters]
+		# } else {
+		# ## random partition
+		# Raum gleichmäßig abdecken
+		# centers = sample(N, size = J)
+		# di = sapply(centers, function(z) sum(abs(x - x[z,])))
+		# }
 	}
+	
+	
 	## clustering
 	# cluster = kmeans(x = X[,colsGating][,-1], centers = J)$cluster
 	# FIXME: subset clustering?
@@ -134,11 +149,103 @@ EMglmnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2
 
 	for (i in 1:iter.max) {
 		## M step
-		## calculate models for lambda sequence, extract coefficients and fitted values for the user-defined lambda
+## FIXME: equal experts
+		if (i > 1) {
+			## check group sizes and remove small components
+			# nok = if (nrow(predGating) == 1) which(predGating < minprior) else {
+				# which(colMeans(predGating) < minprior)
+			# }
+			nok = which(colMeans(predGating) < minprior)
+			if (length(nok)) {
+				message(paste("Removing", length(nok), "component(s)"))
+				predGating = predGating[, -nok, drop = FALSE]
+				predGating = predGating/rowSums(predGating)
+				weights = weights[, -nok, drop = FALSE]
+				## alternative: set them all to the same value
+				weights[rowSums(weights) == 0,] = if (nrow(predGating) > 1) predGating[rowSums(weights) == 0,]
+					else predGating[rep(1, sum(rowSums(weights) == 0)),]
+				weights = weights/rowSums(weights)
+				alpha = alpha[-nok]
+				lambda = lambda[-nok]
+				if (!is.null(offsetExperts))
+					offsetExperts = offsetExperts[, -nok, drop = FALSE]
+				J = ncol(predGating)
+				## this should not happen
+				if (J == 0)
+					stop("all components removed")
+				## if J = 1 this degenerates to a linear model,
+				## therefore fit a single expert model and exit
+				else if (J == 1) {
+					message("Only one component left")
+					gating = NULL
+					offsetGating = NULL
+					## fit a single expert
+					experts = list()
+					if (K == 2) {
+						experts[[1]] = glmnet::glmnet(X[,colsExperts, drop = FALSE], y, family = "binomial",
+							alpha = alpha[1], intercept = interceptExperts, offset = offsetExperts, standardize = standardize,
+							lambda = lambda[1])
+					} else {
+						experts[[1]] = glmnet::glmnet(X[,colsExperts, drop = FALSE], y, family = "multinomial",
+							alpha = alpha[1], intercept = interceptExperts, offset = offsetExperts, standardize = standardize,
+							lambda = lambda[1], type.multinomial = type.multinomial)
+					}
+					break
+				}
+				## reset stopping criterion
+				oldPars = newPars = 0
+			}
+			## check for constant gating model
+			sds = apply(predGating, 2, sd)
+			nok = which(sds < sd.tol)
+			if (length(nok)) {
+				## FIXME: can this happen?
+				if (length(nok) < J) {
+					message(paste("Removing", length(nok), "component(s)"))
+					predGating = predGating[, -nok, drop = FALSE]
+					predGating = predGating/rowSums(predGating)
+					weights = weights[, -nok, drop = FALSE]
+					weights[rowSums(weights) == 0,] = if (nrow(predGating) > 1) predGating[rowSums(weights) == 0,]
+						else predGating[rep(1, sum(rowSums(weights) == 0)),]
+					weights = weights/rowSums(weights)
+					alpha = alpha[-nok]
+					lambda = lambda[-nok]
+					if (!is.null(offsetExperts))
+						offsetExperts = offsetExperts[, -nok, drop = FALSE]
+					J = ncol(predGating)
+				} else {
+					message(paste("Removing all but one component"))
+					J = 1
+					weights = matrix(1, nrow = N)
+					gating = NULL
+					offsetGating = NULL
+					## FIXME: not clear which alpha, lambda to take
+					alpha = alpha[1]
+					lambda = lambda[1]
+					if (!is.null(offsetExperts))
+						offsetExperts = offsetExperts[, 1, drop = FALSE]
+					## fit a single expert
+					experts = list()
+					if (K == 2) {
+						experts[[1]] = glmnet::glmnet(X[,colsExperts, drop = FALSE], y, family = "binomial",
+							alpha = alpha[1], intercept = interceptExperts, offset = offsetExperts, standardize = standardize,
+							lambda = lambda[1])
+					} else {
+						experts[[1]] = glmnet::glmnet(X[,colsExperts, drop = FALSE], y, family = "multinomial",
+							alpha = alpha[1], intercept = interceptExperts, offset = offsetExperts, standardize = standardize,
+							lambda = lambda[1], type.multinomial = type.multinomial)
+					}
+					break					
+				}
+				## adapt stopping criterion
+				oldPars = newPars = 0
+			}
+		}
+
 		if (J == 2) {
 			gating = glmnet::glmnet(X[,colsGating, drop = FALSE], weights, family = "binomial", alpha = alpha[J+1],
 				intercept = interceptGating, offset = offsetGating, standardize = standardize, lambda = lambda[J+1])
-## FIXME: max und min lambda
+## FIXME: check if user-supplied lambda is within sequence and thus reasonable
 			if (interceptGating)
 				parsGating = c(gating$a0, as.vector(gating$beta))
 			else
@@ -204,7 +311,7 @@ EMglmnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2
 				type = "response", offset = offsetExperts))
 			predExperts = lapply(predExperts, drop)				# list of J N x K matrices
 			## get probabilities of the actual class
-			predExperts = sapply(predExperts, function(pr) pr[cbind(1:N,as.numeric(y))]) ## y ?? N x J matrix
+			predExperts = sapply(predExperts, function(pr) pr[cbind(1:N, as.numeric(y))]) ## y ?? N x J matrix
 		}
 		weights = predGating * predExperts
 		weights = weights/rowSums(weights)
@@ -213,10 +320,35 @@ EMglmnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2
 # print(i)
 
 	}
-
+	
 	res = list(gating = gating, experts = experts, weights = weights, iters = i, J = J, K = K, colsGating = colsGating,
 		colsExperts = colsExperts, lambda = lambda, offsetGating = offsetGating, offsetExperts = offsetExperts,
 		lev1 = lev1, lev = lev)
+
+	if (calculate.path) {
+		if (J == 2) {
+			res$gatingPath = glmnet::glmnet(X[,colsGating, drop = FALSE], weights, family = "binomial", alpha = alpha[J+1],
+				intercept = interceptGating, offset = offsetGating, standardize = standardize)
+## FIXME: max und min lambda
+		} else if (J > 2) {
+			res$gatingPath = glmnet::glmnet(X[,colsGating, drop = FALSE], weights, family = "multinomial", alpha = alpha[J+1],
+				intercept = interceptGating, offset = offsetGating, standardize = standardize, type.multinomial = type.multinomial)
+		} else
+			res$gatingPath = NULL
+		if (K == 2) {
+			for (j in 1:J) {
+				res$expertsPath[[j]] = glmnet::glmnet(X[,colsExperts, drop = FALSE], y, weights = weights[,j], family = "binomial",
+					alpha = alpha[j], intercept = interceptExperts, offset = offsetExperts, standardize = standardize)
+			}
+		} else {
+			for (j in 1:J) {
+				res$expertsPath[[j]] = glmnet::glmnet(X[,colsExperts, drop = FALSE], y, weights = weights[,j], family = "multinomial",
+					alpha = alpha[j], intercept = interceptExperts, offset = offsetExperts, standardize = standardize,
+					type.multinomial = type.multinomial)
+			}
+		}
+	}
+
 	class(res) = "EMglmnet"
 	return(res)
 }
@@ -247,8 +379,30 @@ predict.EMglmnet = function(object, newdata, ...) {
 	if (is.null(dim(newdata)))		# a vector is treated as one row
 		dim(newdata) = c(1, length(newdata))
 	X = as.matrix(newdata)
-	predGating = predict(object$gating, newx = X[,object$colsGating, drop = FALSE], s = object$lambda[object$J+1],
-		type = "response", offset = object$offsetGating)
+	if (!is.null(object$gating))
+		predGating = predict(object$gating, newx = X[,object$colsGating, drop = FALSE], s = object$lambda[object$J+1],
+			type = "response", offset = object$offsetGating)
+	else {
+		if (object$J != 1)
+			stop("something is wrong with the gating model")
+		else {
+			predGating = NULL
+			if (object$K == 2) {
+				predExperts = sapply(1:object$J, function(j) predict(object$experts[[j]], newx = X[,object$colsExperts, drop = FALSE],
+					s = object$lambda[j], type = "response", offset = object$offsetExperts))
+				## predGating: N x 1 matrix (group 2)
+				## predExperts: N x 2 matrix (probs for class 2 from groups 1 and 2)
+				post = predExperts													# N x 1 matrix (class 2)
+				post = cbind(1 - post, post)										# N x 2 matrix (classes 1 and 2)
+			} else if (object$K > 2) {
+				predExperts = lapply(1:object$J, function(j) predict(object$experts[[j]], newx = X[,object$colsExperts, drop = FALSE],
+					s = object$lambda[j], type = "response", offset = object$offsetExperts))
+				predExperts = lapply(predExperts, drop)		# list of J N x K matrices
+				post = predExperts[[1]]
+			} else
+				stop("something is wrong with 'object$K'")
+		}
+	}
 	if (object$J == 2) {
 		if (object$K == 2) {
 			predExperts = sapply(1:object$J, function(j) predict(object$experts[[j]], newx = X[,object$colsExperts, drop = FALSE],
@@ -279,7 +433,7 @@ predict.EMglmnet = function(object, newdata, ...) {
 			post = matrix(rowSums(sapply(1:object$J, function(z) predGating[,z] * predExperts[[z]])), ncol = object$K)	# N x K matrix 
 		} else
 			stop("something is wrong with 'object$K'")
-	} else
+	} else if (object$J < 1)
 		stop("Something is wrong with 'object$J'")
 	rownames(post) = rownames(X)
 	colnames(post) = object$lev1		
