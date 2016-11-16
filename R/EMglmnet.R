@@ -118,23 +118,32 @@ EMglmnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2
 		}
 		weights = init.weights
 	} else {
-		# if () {
 		## random segmentation
-		weights = matrix(runif(N*J), ncol = J)
-		weights = weights/rowSums(weights)
+		# weights = matrix(runif(N*J), ncol = J)
+		# weights = weights/rowSums(weights)
 		## random clustering
 		## centers = X[sample(N,J),]
 		## clusters = assign to closest centers
 		## weights = diag(J)[clusters]
-		# } else {
-		# ## random partition
-		# Raum gleichmäßig abdecken
-		# centers = sample(N, size = J)
-		# di = sapply(centers, function(z) sum(abs(x - x[z,])))
-		# }
+		## make a random partition of the input space where all parts have approximately equal size
+		centers = sample(N, size = J)
+# print(X[centers,])
+		di = sapply(centers, function(z) colSums(abs(t(X) - X[z,])))
+		pr = ceiling(N/J)
+		weights = matrix(0, N, J)
+		weights[,-J] = apply(di[, -J, drop = FALSE], 2, function(z) {
+			ord = order(z)
+			w = rep(0,N)
+			w[ord[1:pr]] = 1	
+			w
+		})
+		weights[rowSums(weights) == 0, J] = 1
+		# weights = max.col(-di)
+		# weights = diag(J)[weights,]
+# print(str(weights))
 	}
 	
-	
+# print(summary(weights))
 	## clustering
 	# cluster = kmeans(x = X[,colsGating][,-1], centers = J)$cluster
 	# FIXME: subset clustering?
@@ -150,6 +159,7 @@ EMglmnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2
 	for (i in 1:iter.max) {
 		## M step
 ## FIXME: equal experts
+## FIXME: look for constant experts
 		if (i > 1) {
 			## check group sizes and remove small components
 			# nok = if (nrow(predGating) == 1) which(predGating < minprior) else {
