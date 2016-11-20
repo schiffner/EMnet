@@ -143,7 +143,9 @@ EMglmnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2
 # print(str(weights))
 	}
 	
+# print("initial weights")
 # print(summary(weights))
+# print(head(weights, 20))
 	## clustering
 	# cluster = kmeans(x = X[,colsGating][,-1], centers = J)$cluster
 	# FIXME: subset clustering?
@@ -206,50 +208,61 @@ EMglmnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2
 				oldPars = newPars = 0
 			}
 			## check for constant gating model
-			sds = apply(predGating, 2, sd)
-			nok = which(sds < sd.tol)
-			if (length(nok)) {
-				## FIXME: can this happen?
-				if (length(nok) < J) {
-					message(paste("Removing", length(nok), "component(s)"))
-					predGating = predGating[, -nok, drop = FALSE]
-					predGating = predGating/rowSums(predGating)
-					weights = weights[, -nok, drop = FALSE]
-					weights[rowSums(weights) == 0,] = if (nrow(predGating) > 1) predGating[rowSums(weights) == 0,]
-						else predGating[rep(1, sum(rowSums(weights) == 0)),]
-					weights = weights/rowSums(weights)
-					alpha = alpha[-nok]
-					lambda = lambda[-nok]
-					if (!is.null(offsetExperts))
-						offsetExperts = offsetExperts[, -nok, drop = FALSE]
-					J = ncol(predGating)
-				} else {
-					message(paste("Removing all but one component"))
-					J = 1
-					weights = matrix(1, nrow = N)
-					gating = NULL
-					offsetGating = NULL
-					## FIXME: not clear which alpha, lambda to take
-					alpha = alpha[1]
-					lambda = lambda[1]
-					if (!is.null(offsetExperts))
-						offsetExperts = offsetExperts[, 1, drop = FALSE]
-					## fit a single expert
-					experts = list()
-					if (K == 2) {
-						experts[[1]] = glmnet::glmnet(X[,colsExperts, drop = FALSE], y, family = "binomial",
-							alpha = alpha[1], intercept = interceptExperts, offset = offsetExperts, standardize = standardize,
-							lambda = lambda[1])
-					} else {
-						experts[[1]] = glmnet::glmnet(X[,colsExperts, drop = FALSE], y, family = "multinomial",
-							alpha = alpha[1], intercept = interceptExperts, offset = offsetExperts, standardize = standardize,
-							lambda = lambda[1], type.multinomial = type.multinomial)
-					}
-					break					
-				}
+## FIXME: constant weights, weights that are multiples of each other
+# print("gating")
+# print(summary(predGating))
+# print(head(predGating, 20))
+# print("experts")
+# print(summary(predExperts))
+# print(head(predExperts, 20))
+			# sds = apply(predGating, 2, sd)
+			# nok = which(sds < sd.tol)
+			# if (length(nok) == J) {
+				# message("constant gating model")
+				# break
+			# }
+			# if (length(nok)) {
+				# ## FIXME: can this happen?
+				# if (length(nok) < J) {
+					# message(paste("Removing", length(nok), "component(s)"))
+					# predGating = predGating[, -nok, drop = FALSE]
+					# predGating = predGating/rowSums(predGating)
+					# weights = weights[, -nok, drop = FALSE]
+					# weights[rowSums(weights) == 0,] = if (nrow(predGating) > 1) predGating[rowSums(weights) == 0,]
+						# else predGating[rep(1, sum(rowSums(weights) == 0)),]
+					# weights = weights/rowSums(weights)
+					# alpha = alpha[-nok]
+					# lambda = lambda[-nok]
+					# if (!is.null(offsetExperts))
+						# offsetExperts = offsetExperts[, -nok, drop = FALSE]
+					# J = ncol(predGating)
+				# } else {
+					# message(paste("Removing all but one component"))
+					# J = 1
+					# weights = matrix(1, nrow = N)
+					# gating = NULL
+					# offsetGating = NULL
+					# ## FIXME: not clear which alpha, lambda to take
+					# alpha = alpha[1]
+					# lambda = lambda[1]
+					# if (!is.null(offsetExperts))
+						# offsetExperts = offsetExperts[, 1, drop = FALSE]
+					# ## fit a single expert
+					# experts = list()
+					# if (K == 2) {
+						# experts[[1]] = glmnet::glmnet(X[,colsExperts, drop = FALSE], y, family = "binomial",
+							# alpha = alpha[1], intercept = interceptExperts, offset = offsetExperts, standardize = standardize,
+							# lambda = lambda[1])
+					# } else {
+						# experts[[1]] = glmnet::glmnet(X[,colsExperts, drop = FALSE], y, family = "multinomial",
+							# alpha = alpha[1], intercept = interceptExperts, offset = offsetExperts, standardize = standardize,
+							# lambda = lambda[1], type.multinomial = type.multinomial)
+					# }
+					# break					
+				# }
 				## adapt stopping criterion
-				oldPars = newPars = 0
-			}
+				# oldPars = newPars = 0
+			# }
 		}
 
 		if (J == 2) {
@@ -326,7 +339,9 @@ EMglmnet = function(y, X, colsGating = 1:ncol(X), colsExperts = 1:ncol(X), J = 2
 		weights = predGating * predExperts
 		weights = weights/rowSums(weights)
 
+# print("weights")
 # print(summary(weights))
+# print(head(weights, 20))
 # print(i)
 
 	}
