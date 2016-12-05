@@ -99,7 +99,7 @@ getInteractions = function(object, ...) {
 ## FIXME: wegen Identifizierbarkeit transformieren?
 	if (object$J == 2) {
 		if (object$K == 2) {
-			int = getInteractionsHelper(1:2)
+			int = getInteractionsHelper(1:2, cfs)
 		} else if (object$K > 2) {
 			stop("not yet")
 		} else {
@@ -108,7 +108,7 @@ getInteractions = function(object, ...) {
 	} else if (object$J > 2) {
 		if (object$K == 2) {
 			combs = combn(object$J, 2)
-			int = apply(combs, 2, getInteractionsHelper)
+			int = apply(combs, 2, getInteractionsHelper, cfs = cfs)
 			# do.call rbind, rbind.fill
 		} else if (object$K > 2) {
 			stop("not yet")
@@ -128,7 +128,7 @@ getInteractions = function(object, ...) {
 ## FIXME: odds ratios
 ## was bedeutet softmax?
 ## j-te gating trennt was?
-getInteractionsHelper = function(z) {
+getInteractionsHelper = function(z, cfs) {
 	diffExperts = cfs$experts[[z[2]]] - cfs$experts[[z[1]]]
 	diffGating = cfs$gating[[z[2]]] - cfs$gating[[z[1]]]
 	indExperts = glmnet::nonzeroCoef(diffExperts)
